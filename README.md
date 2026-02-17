@@ -1,26 +1,79 @@
-# Table-Attribution
+# TRACEBACK: Multi-Agent Decomposition for Fine-Grained Table Attribution
 
-This repository contains table-answer attribution code centered on:
-- TraceBack (ours)
-- CITEBENCH evaluation
-- FAIRScore (reference-less evaluation)
-- CITEBENCH baseline included in this repo: ICL
+[![arXiv](https://img.shields.io/badge/arXiv-2602.13059-b31b1b.svg)](https://arxiv.org/abs/2602.13059)
+[![Project Page](https://img.shields.io/badge/Project-Page-green)](https://coral-lab-asu.github.io/TraceBack/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/license/MIT)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 
-This cleaned version intentionally excludes GenerationPrograms and Inseq components.
+**TRACEBACK** is a multi-agent attribution framework that traces table-based answers back to their supporting cells, providing fine-grained attribution at the cell level rather than coarse row or column granularity.
+
+---
+
+## Overview
+
+![TRACEBACK Overview](static/images/traceback_pipeline_clean.png)
+
+Table QA systems can produce correct answers yet offer no way to verify **which cells** actually support them. Existing approaches either skip attribution entirely or operate at coarse row/column granularity, leaving fine-grained evidence trails unaddressed. TRACEBACK closes this gap with a modular, multi-agent pipeline for **cell-level attribution** in single-table QA.
+
+**TRACEBACK** works in five key steps:
+
+1. **Column Pruning** — Identify columns relevant to the question via an LLM agent, reducing noise from large tables.
+2. **Row Filtering** — Generate and execute SQL to retain only the rows needed for answering (optional, via MySQL/SQLite).
+3. **Sub-query Decomposition** — Break the question into atomic sub-queries, each targeting a single fact, with NLI-based filtering for faithfulness.
+4. **Sub-query Attribution** — Align each sub-query to specific table cells, capturing both direct evidence and intermediate reasoning steps.
+5. **Final Attribution** — Consolidate cell-level evidence across all sub-queries into a unified attribution map.
+
+We also introduce **CITEBench**, a benchmark with phrase-to-cell annotations drawn from ToTTo, FetaQA, and AITQA, and **FairScore**, a reference-less metric that estimates attribution precision and recall without human cell labels.
+
+This repository contains the code, prompts, datasets, and evaluation pipelines for reproducing and extending TRACEBACK, CITEBench, and FairScore.
+
+---
+
+## Repository Structure
+
+```
+Traceback/
+├── src/                        
+│   ├── main_aitqa.py           # TraceBack runner for AITQA
+│   ├── main_fetaqa.py          # TraceBack runner for FetaQA
+│   ├── totto_traceback.py      # TraceBack runner for ToTTo
+│   ├── LLM.py                  # Unified LLM backends (OpenAI, Gemini, DeepSeek, Novita, HF)
+│   ├── database.py             # MySQL/SQLAlchemy interface for row filtering
+│   ├── relevant_col_gen.py     # Step 1: Column relevance via LLM
+│   ├── relevant_row_gen.py     # Step 2: Row filtering via SQL generation
+│   ├── query_attribution.py    # Step 4: Subquery attribution
+│   ├── subqueries.py           # Step 3: Subquery generation
+│   ├── eval_aitqa.py           # AITQA precision/recall evaluation
+│   ├── eval_fetaqa.py          # FetaQA precision/recall evaluation
+│   ├── eval_totto.py           # ToTTo evaluation
+│   ├── eval_traceback_md.py    # Combined markdown table (AITQA/FetaQA/ToTTo)
+│   ├── eval_traceback_hf_all.py # HF model results aggregation
+│   ├── traceback_citebench_full.py # TraceBack over CITEBENCH
+│   ├── eval_citebench_all.py   # CITEBENCH evaluator
+│   ├── eval_fairscore.py       # FAIRScore (reference-less) evaluation
+│   ├── icl_runner.py           # ICL baseline for CITEBENCH
+│   ├── metrics_to_md*.py       # CITEBENCH metrics → markdown converters
+│   └── utils.py                # Shared utilities
+├── traceback_workflow.py       # Core 5-step TraceBack workflow
+├── Prompts/                    # TraceBack prompt templates
+├── Prompts_2/                  # ICL baseline prompt templates
+├── Datasets/                   # AITQA, FetaQA, ToTTo, CITEBENCH
+└── README.md                   # This file
+```
 
 ## 1) Project Layout
 
 Key scripts:
 - `traceback_workflow.py`: shared 5-step TraceBack workflow used by dataset runners
-- `Code/main.py`: TraceBack runner for AITQA
-- `Code_with_rows/main.py`: TraceBack runner for FetaQA
-- `Code_with_rows/totto_traceback.py`: TraceBack runner for ToTTo
-- `Code/eval_script.py`, `Code_with_rows/eval_script.py`, `Code_with_rows/eval_totto.py`: per-dataset P/R evaluation
-- `Code/eval_traceback_md.py`: one-shot markdown table for AITQA/FetaQA/ToTTo
-- `Code/traceback_citebench_full.py`: TraceBack over unified CITEBENCH
-- `Code/eval_citebench_all.py`: CITEBENCH evaluator for style-based outputs
-- `Code/eval_fairscore.py`: FAIRScore evaluation
-- `Code/icl_runner.py`: CITEBENCH ICL baseline
+- `src/main_aitqa.py`: TraceBack runner for AITQA
+- `src/main_fetaqa.py`: TraceBack runner for FetaQA
+- `src/totto_traceback.py`: TraceBack runner for ToTTo
+- `src/eval_aitqa.py`, `src/eval_fetaqa.py`, `src/eval_totto.py`: per-dataset P/R evaluation
+- `src/eval_traceback_md.py`: one-shot markdown table for AITQA/FetaQA/ToTTo
+- `src/traceback_citebench_full.py`: TraceBack over unified CITEBENCH
+- `src/eval_citebench_all.py`: CITEBENCH evaluator for style-based outputs
+- `src/eval_fairscore.py`: FAIRScore evaluation
+- `src/icl_runner.py`: CITEBENCH ICL baseline
 
 Prompt files:
 - TraceBack prompts: `Prompts/`
@@ -55,38 +108,38 @@ Environment variables (as needed by backend):
 ### AITQA
 Run:
 ```bash
-python Code/main.py
+python src/main_aitqa.py
 ```
 Evaluate:
 ```bash
-python Code/eval_script.py
+python src/eval_aitqa.py
 ```
 
 ### FetaQA
 Run:
 ```bash
-python Code_with_rows/main.py
+python src/main_fetaqa.py
 ```
 Evaluate:
 ```bash
-python Code_with_rows/eval_script.py
+python src/eval_fetaqa.py
 ```
 
 ### ToTTo
 Run:
 ```bash
-python Code_with_rows/totto_traceback.py
+python src/totto_traceback.py
 ```
 Evaluate:
 ```bash
-python Code_with_rows/eval_totto.py
+python src/eval_totto.py
 ```
 
 ### Local HF TraceBack runs
 ```bash
-python Code/main.py --backend hf --model Qwen/Qwen2.5-7B-Instruct --resume
-python Code_with_rows/main.py --backend hf --model google/gemma-3-4b-it --resume
-python Code_with_rows/totto_traceback.py --backend hf --model Qwen/Qwen2.5-3B-Instruct --resume
+python src/main_aitqa.py --backend hf --model Qwen/Qwen2.5-7B-Instruct --resume
+python src/main_fetaqa.py --backend hf --model google/gemma-3-4b-it --resume
+python src/totto_traceback.py --backend hf --model Qwen/Qwen2.5-3B-Instruct --resume
 ```
 
 Notes:
@@ -97,7 +150,7 @@ Notes:
 
 ### Combined TraceBack markdown table (AITQA/FetaQA/ToTTo)
 ```bash
-python Code/eval_traceback_md.py --percent --output results/eval/metrics_traceback.md
+python src/eval_traceback_md.py --percent --output results/eval/metrics_traceback.md
 ```
 
 ## 4) CITEBENCH Experiments
@@ -105,7 +158,7 @@ python Code/eval_traceback_md.py --percent --output results/eval/metrics_traceba
 ### 4.1 TraceBack full pipeline on CITEBENCH
 Run:
 ```bash
-python Code/traceback_citebench_full.py \
+python src/traceback_citebench_full.py \
   --citebench Datasets/CITEBENCH.json \
   --outdir results/TraceBack_full \
   --model gpt-4o
@@ -113,7 +166,7 @@ python Code/traceback_citebench_full.py \
 
 Evaluate:
 ```bash
-python Code/eval_citebench_all.py \
+python src/eval_citebench_all.py \
   --results-root results/TraceBack_full \
   --gt Datasets/CITEBENCH.json \
   --styles traceback-full \
@@ -129,7 +182,7 @@ ICL prompt templates:
 
 Run (OpenAI example):
 ```bash
-python Code/icl_runner.py \
+python src/icl_runner.py \
   --backend openai \
   --models gpt-4o \
   --styles zero zero-cot few few-cot \
@@ -139,7 +192,7 @@ python Code/icl_runner.py \
 
 Evaluate:
 ```bash
-python Code/eval_citebench_all.py \
+python src/eval_citebench_all.py \
   --results-root results/ICL \
   --gt Datasets/CITEBENCH.json \
   --styles zero zero-cot few few-cot \
@@ -150,17 +203,17 @@ python Code/eval_citebench_all.py \
 
 Default run over TraceBack outputs:
 ```bash
-python Code/eval_fairscore.py --cells pred --backend openai --model gpt-4o
+python src/eval_fairscore.py --cells pred --backend openai --model gpt-4o
 ```
 
 Parallel requests (be mindful of rate limits):
 ```bash
-python Code/eval_fairscore.py --cells pred --backend openai --model gpt-4o --workers 4 --max-inflight 4
+python src/eval_fairscore.py --cells pred --backend openai --model gpt-4o --workers 4 --max-inflight 4
 ```
 
 Score both predicted and gold cells:
 ```bash
-python Code/eval_fairscore.py --cells both --backend openai --model gpt-4o
+python src/eval_fairscore.py --cells both --backend openai --model gpt-4o
 ```
 
 Outputs:
@@ -170,7 +223,7 @@ Outputs:
 
 Use a unified CITEBENCH-style prediction file via `--preds`:
 ```bash
-python Code/eval_fairscore.py \
+python src/eval_fairscore.py \
   --preds results/ICL/gpt-4o/few-cot.json \
   --pred-tag few-cot \
   --cells pred \
@@ -183,3 +236,23 @@ python Code/eval_fairscore.py \
 ## 6) MySQL (Optional, for strict TraceBack Step 2)
 
 See `MYSQL_USAGE.txt` for full setup/start/stop instructions.
+
+## Citation
+If you use this repository in your research, please cite the accompanying paper (TRACEBACK). 
+```bibtex
+@misc{anvekar2026tracebackmultiagentdecompositionfinegrained,
+      title={TraceBack: Multi-Agent Decomposition for Fine-Grained Table Attribution}, 
+      author={Tejas Anvekar and Junha Park and Rajat Jha and Devanshu Gupta and Poojah Ganesan and Puneeth Mathur and Vivek Gupta},
+      year={2026},
+      eprint={2602.13059},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2602.13059}, 
+}
+```
+
+## License
+Please see the [LICENSE](LICENSE) file if provided. If absent, contact the authors for licensing information.
+
+## Contributing
+Contributions are welcome. Please open an issue or a pull request for fixes and improvements

@@ -286,7 +286,7 @@ class TraceBackWorkflowRunner:
         self._db = None
         if self.enable_row_filtering:
             try:
-                sys.path.append(str(_ROOT_DIR / "Code_with_rows"))
+                sys.path.append(str(_ROOT_DIR / "src"))
                 from database import DataBase  # type: ignore
 
                 self._db = DataBase()

@@ -10,15 +10,6 @@ from dotenv import load_dotenv, find_dotenv
 
 load_dotenv(find_dotenv())
 
-# Hugging Face caches (avoid filling $HOME/.cache on clusters with small home quota).
-_default_hf_home = f"/scratch/{os.getenv('USER', 'unknown')}/hf_home"
-os.environ.setdefault("HF_HOME", _default_hf_home)
-os.environ.setdefault("HF_HUB_CACHE", str(Path(os.environ["HF_HOME"]) / "hub"))
-
-# from huggingface_hub import login
-# login(token="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")
-
-
 def read_json(path: Path):
     with path.open("r", encoding="utf-8") as f:
         return json.load(f)
